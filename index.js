@@ -31,10 +31,10 @@ async function run() {
     await client.connect();
 
     // user related apis
-    // app.get("/users", async (req, res) => {
-    //   const result = await usersCollection.find().toArray();
-    //   res.send(result);
-    // });
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
     app.post("/users", async (req, res) => {
       const user = req.body;
       // insert user if user is new
