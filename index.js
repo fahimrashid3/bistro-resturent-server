@@ -22,21 +22,61 @@ const client = new MongoClient(uri, {
   },
 });
 
-const menuCollection = client.db("bistroDb").collection("menu");
-const usersCollection = client.db("bistroDb").collection("users");
-const reviewsCollection = client.db("bistroDb").collection("reviews");
-const cartsCollection = client.db("bistroDb").collection("carts");
-
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+    const menuCollection = client.db("bistroDb").collection("menu");
+    const usersCollection = client.db("bistroDb").collection("users");
+    const reviewsCollection = client.db("bistroDb").collection("reviews");
+    const cartsCollection = client.db("bistroDb").collection("carts");
+
+    // jwt related apis
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
+
+    // middlewares
+
+    const verifyToken = (req, res, next) => {
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "forbidden access" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "forbidden access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
 
     // user related apis
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "unauthorize access" });
+      }
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+        admin = true;
+      }
+    });
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       // insert user if user is new
