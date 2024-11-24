@@ -1,10 +1,12 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
-require("dotenv").config();
 
+// console.log(process.env.STRIPE_SECRET_KEY);
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -29,6 +31,7 @@ async function run() {
     const usersCollection = client.db("bistroDb").collection("users");
     const reviewsCollection = client.db("bistroDb").collection("reviews");
     const cartsCollection = client.db("bistroDb").collection("carts");
+    const paymentCollection = client.db("bistroDb").collection("payments");
 
     // jwt related apis
 
@@ -195,7 +198,6 @@ async function run() {
     app.get("/carts", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
-
       const result = await cartsCollection.find(query).toArray();
       res.send(result);
     });
@@ -204,6 +206,51 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await cartsCollection.deleteOne(query);
+      res.send(result);
+    });
+    // payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      // console.log("Request Body:", req.body); // Log the full request body
+      const { price } = req.body;
+      const amount = Math.round(price * 100); // Convert to cents
+      // console.log("Amount:", amount);
+      // console.log("intent price", amount);
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(400).send({ error: error.message });
+      }
+    });
+    // payment info
+    app.post("/payments", async (req, res) => {
+      const paymentInfo = req.body;
+      // console.log(paymentInfo);
+      const paymentResult = await paymentCollection.insertOne(paymentInfo);
+
+      //delete items of user cart
+      const query = {
+        _id: {
+          $in: paymentInfo.cartIds.map((id) => new ObjectId(id)),
+        },
+      };
+
+      const deleteResult = await cartsCollection.deleteMany(query);
+      res.send({ paymentResult, deleteResult });
+    });
+
+    // find user payment (user can find his payment only)
+    app.get("/payments", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await paymentCollection.find(query).toArray();
       res.send(result);
     });
 
