@@ -132,13 +132,51 @@ async function run() {
     });
 
     // menu related apis
+    // get all menu item
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
     });
+    // get single menu item by id
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: id };
+      const result = await menuCollection.findOne(query);
+      res.send(result);
+    });
+
+    // add items
     app.post("/menu", verifyToken, verifyAdmin, async (req, res) => {
       const menuItem = req.body;
       const result = await menuCollection.insertOne(menuItem);
+      res.send(result);
+    });
+    // update single item
+    app.patch("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: id };
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          recipe: item.recipe,
+          image: item.image,
+          category: item.category,
+          price: item.price,
+        },
+      };
+      const result = await menuCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+      // console.log("Received ID:", id);
+      // console.log("Filter:", filter);
+      // console.log("Update Data:", updatedDoc);
+      // console.log("update result:", result);
+    });
+    // delete item
+    app.delete("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: id };
+      const result = await menuCollection.deleteOne(query);
       res.send(result);
     });
     // reviews related apis
@@ -153,6 +191,7 @@ async function run() {
       res.send(result);
     });
 
+    // find user order (user can find his order only)
     app.get("/carts", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
