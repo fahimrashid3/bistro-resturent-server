@@ -143,7 +143,8 @@ async function run() {
     // get single menu item by id
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+      // const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const result = await menuCollection.findOne(query);
       res.send(result);
     });
@@ -156,29 +157,38 @@ async function run() {
     });
     // update single item
     app.patch("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const item = req.body;
       const id = req.params.id;
-      const filter = { _id: id };
+      console.log("ID received:", id); // Debugging
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
-          name: item.name,
-          recipe: item.recipe,
-          image: item.image,
-          category: item.category,
-          price: item.price,
+          name: req.body.name,
+          recipe: req.body.recipe,
+          image: req.body.image,
+          category: req.body.category,
+          price: req.body.price,
         },
       };
-      const result = await menuCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-      // console.log("Received ID:", id);
-      // console.log("Filter:", filter);
-      // console.log("Update Data:", updatedDoc);
-      // console.log("update result:", result);
+      try {
+        const result = await menuCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating item:", error);
+        res.status(500).send({ error: "Failed to update item" });
+      }
     });
+
     // delete item
     app.delete("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+      console.log(id);
+      // const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const result = await menuCollection.deleteOne(query);
       res.send(result);
     });
