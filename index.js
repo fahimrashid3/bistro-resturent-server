@@ -77,6 +77,18 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+    app.get("/user", verifyToken, async (req, res) => {
+      const email = req.query.email;
+      console.log("Email received:", email);
+
+      if (!email) {
+        return res.status(400).send({ error: "Email is required" });
+      }
+
+      const query = { email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
 
     // get admin
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
